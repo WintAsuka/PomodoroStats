@@ -35,6 +35,7 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Image;
 import java.awt.Insets;
+import java.awt.LayoutManager;
 import java.awt.MenuItem;
 import java.awt.PopupMenu;
 import java.awt.RenderingHints;
@@ -95,8 +96,8 @@ public class PomodoroDesktop {
         }
         frame = new JFrame("PomodoroStats");
         frame.setDefaultCloseOperation(WindowConstants.HIDE_ON_CLOSE);
-        frame.setMinimumSize(new Dimension(900, 620));
-        frame.setSize(980, 680);
+        frame.setMinimumSize(new Dimension(1120, 760));
+        frame.setSize(1280, 820);
         frame.setLocationRelativeTo(null);
 
         JTabbedPane tabs = new JTabbedPane();
@@ -106,7 +107,9 @@ public class PomodoroDesktop {
         tabs.addTab("专注", timerPanel);
         tabs.addTab("统计", statsPanel);
         tabs.addTab("设置", settingsPanel);
-        tabs.setFont(AppFonts.ui(15, Font.BOLD));
+        tabs.setFont(AppFonts.ui(18, Font.BOLD));
+        tabs.setBackground(AppColors.paper);
+        tabs.setForeground(AppColors.ink);
         frame.setContentPane(tabs);
 
         miniWindow = new MiniWindow();
@@ -318,19 +321,30 @@ public class PomodoroDesktop {
 
     class TimerPanel extends JPanel {
         private final RingPanel ring = new RingPanel();
-        private final JLabel phase = label("专注", 18, Font.BOLD, AppColors.muted);
-        private final JLabel time = label("25:00", 64, Font.BOLD, AppColors.ink);
-        private final JLabel today = label("", 16, Font.PLAIN, AppColors.muted);
-        private final JLabel week = label("", 16, Font.PLAIN, AppColors.muted);
-        private final JLabel month = label("", 16, Font.PLAIN, AppColors.muted);
+        private final JLabel phase = label("专注", 22, Font.BOLD, AppColors.muted);
+        private final JLabel time = label("25:00", 82, Font.BOLD, AppColors.ink);
+        private final JLabel today = label("", 18, Font.PLAIN, AppColors.muted);
+        private final JLabel week = label("", 22, Font.BOLD, accentColor());
+        private final JLabel month = label("", 22, Font.BOLD, new Color(43, 136, 116));
+        private final JLabel phaseBadge = badge("专注中");
 
         TimerPanel() {
-            setLayout(new BorderLayout(24, 24));
+            setLayout(new BorderLayout(28, 28));
             setBackground(AppColors.paper);
-            setBorder(BorderFactory.createEmptyBorder(28, 32, 28, 32));
+            setBorder(BorderFactory.createEmptyBorder(36, 44, 38, 44));
 
-            JPanel center = card(new BorderLayout());
-            center.setBorder(BorderFactory.createEmptyBorder(32, 32, 32, 32));
+            JPanel center = heroCard(new BorderLayout(32, 22));
+            center.setBorder(BorderFactory.createEmptyBorder(38, 42, 38, 42));
+            JPanel header = new JPanel(new BorderLayout(18, 0));
+            header.setOpaque(false);
+            JPanel titleBlock = new JPanel(new BorderLayout(0, 8));
+            titleBlock.setOpaque(false);
+            titleBlock.add(label("PomodoroStats", 34, Font.BOLD, AppColors.ink), BorderLayout.NORTH);
+            titleBlock.add(label("轻量常驻的桌面专注伴侣", 17, Font.PLAIN, AppColors.muted), BorderLayout.SOUTH);
+            header.add(titleBlock, BorderLayout.WEST);
+            header.add(phaseBadge, BorderLayout.EAST);
+            center.add(header, BorderLayout.NORTH);
+
             JPanel stack = new JPanel(new GridBagLayout());
             stack.setOpaque(false);
             GridBagConstraints gc = new GridBagConstraints();
@@ -338,18 +352,18 @@ public class PomodoroDesktop {
             gc.gridy = 0;
             stack.add(phase, gc);
             gc.gridy++;
-            stack.add(Box.createVerticalStrut(8), gc);
+            stack.add(Box.createVerticalStrut(10), gc);
             gc.gridy++;
             stack.add(time, gc);
             gc.gridy++;
-            stack.add(Box.createVerticalStrut(8), gc);
+            stack.add(Box.createVerticalStrut(10), gc);
             gc.gridy++;
             stack.add(today, gc);
             ring.setLayout(new GridBagLayout());
             ring.add(stack);
             center.add(ring, BorderLayout.CENTER);
 
-            JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, 14, 0));
+            JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, 18, 0));
             buttons.setOpaque(false);
             buttons.add(primaryButton("开始 / 暂停", e -> toggleTimer()));
             buttons.add(secondaryButton("重置", e -> resetTimer()));
@@ -362,16 +376,18 @@ public class PomodoroDesktop {
             GridBagConstraints s = new GridBagConstraints();
             s.fill = GridBagConstraints.BOTH;
             s.weightx = 1;
-            s.insets = new Insets(0, 0, 0, 12);
+            s.insets = new Insets(0, 0, 0, 16);
             summary.add(metric("本周专注", week), s);
             s.gridx = 1;
-            s.insets = new Insets(0, 12, 0, 0);
+            s.insets = new Insets(0, 16, 0, 0);
             summary.add(metric("本月专注", month), s);
             add(summary, BorderLayout.SOUTH);
         }
 
         void refresh() {
             phase.setText(focusMode ? "专注中" : "休息中");
+            phaseBadge.setText(focusMode ? "专注中" : "休息中");
+            phaseBadge.setBackground(accentColor());
             time.setText(timeText());
             today.setText("今日完成 " + todayCount() + " / " + settings.dailyGoal + " 个");
             week.setText(weekMinutes() + " 分钟");
@@ -381,24 +397,24 @@ public class PomodoroDesktop {
     }
 
     class StatsPanel extends JPanel {
-        private final JLabel total = label("", 22, Font.BOLD, accentColor());
-        private final JLabel streak = label("", 22, Font.BOLD, new Color(65, 105, 190));
+        private final JLabel total = label("", 28, Font.BOLD, accentColor());
+        private final JLabel streak = label("", 28, Font.BOLD, new Color(65, 105, 190));
         private final ChartPanel days = new ChartPanel(false);
         private final ChartPanel months = new ChartPanel(true);
 
         StatsPanel() {
-            setLayout(new BorderLayout(24, 24));
+            setLayout(new BorderLayout(28, 28));
             setBackground(AppColors.paper);
-            setBorder(BorderFactory.createEmptyBorder(28, 32, 28, 32));
+            setBorder(BorderFactory.createEmptyBorder(36, 44, 38, 44));
             JPanel top = new JPanel(new GridBagLayout());
             top.setOpaque(false);
             GridBagConstraints gc = new GridBagConstraints();
             gc.fill = GridBagConstraints.BOTH;
             gc.weightx = 1;
-            gc.insets = new Insets(0, 0, 0, 12);
+            gc.insets = new Insets(0, 0, 0, 16);
             top.add(metric("累计专注", total), gc);
             gc.gridx = 1;
-            gc.insets = new Insets(0, 12, 0, 0);
+            gc.insets = new Insets(0, 16, 0, 0);
             top.add(metric("连续记录", streak), gc);
             add(top, BorderLayout.NORTH);
 
@@ -410,10 +426,10 @@ public class PomodoroDesktop {
             c.weightx = 1;
             c.weighty = 1;
             c.fill = GridBagConstraints.BOTH;
-            c.insets = new Insets(0, 0, 14, 0);
+            c.insets = new Insets(0, 0, 16, 0);
             charts.add(chartCard("最近 7 天", days), c);
             c.gridy = 1;
-            c.insets = new Insets(14, 0, 0, 0);
+            c.insets = new Insets(16, 0, 0, 0);
             charts.add(chartCard("最近 6 个月", months), c);
             add(charts, BorderLayout.CENTER);
         }
@@ -439,15 +455,21 @@ public class PomodoroDesktop {
         SettingsPanel() {
             setLayout(new BorderLayout());
             setBackground(AppColors.paper);
-            setBorder(BorderFactory.createEmptyBorder(28, 32, 28, 32));
-            JPanel form = card(new GridBagLayout());
-            form.setBorder(BorderFactory.createEmptyBorder(28, 32, 28, 32));
+            setBorder(BorderFactory.createEmptyBorder(36, 44, 38, 44));
+            JPanel form = heroCard(new GridBagLayout());
+            form.setBorder(BorderFactory.createEmptyBorder(34, 40, 34, 40));
             GridBagConstraints gc = new GridBagConstraints();
             gc.gridx = 0;
             gc.gridy = 0;
             gc.weightx = 1;
             gc.fill = GridBagConstraints.HORIZONTAL;
-            gc.insets = new Insets(0, 0, 14, 0);
+            gc.insets = new Insets(0, 0, 18, 0);
+            JPanel header = new JPanel(new BorderLayout(0, 8));
+            header.setOpaque(false);
+            header.add(label("偏好设置", 30, Font.BOLD, AppColors.ink), BorderLayout.NORTH);
+            header.add(label("调整节奏、目标和桌面提醒方式。", 16, Font.PLAIN, AppColors.muted), BorderLayout.SOUTH);
+            form.add(header, gc);
+            gc.gridy++;
             form.add(settingRow("专注时长", "分钟", focus), gc);
             gc.gridy++;
             form.add(settingRow("短休息", "分钟", brk), gc);
@@ -461,7 +483,8 @@ public class PomodoroDesktop {
             form.add(themeRow(theme), gc);
             gc.gridy++;
             autoFocus.setOpaque(false);
-            autoFocus.setFont(AppFonts.ui(15, Font.PLAIN));
+            autoFocus.setFont(AppFonts.ui(17, Font.PLAIN));
+            autoFocus.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
             form.add(autoFocus, gc);
             add(form, BorderLayout.NORTH);
 
@@ -504,19 +527,19 @@ public class PomodoroDesktop {
     }
 
     class MiniWindow extends JWindow {
-        private final JLabel time = label("25:00", 26, Font.BOLD, AppColors.ink);
-        private final JLabel phase = label("专注", 13, Font.BOLD, AppColors.muted);
+        private final JLabel time = label("25:00", 34, Font.BOLD, AppColors.ink);
+        private final JLabel phase = label("专注", 15, Font.BOLD, AppColors.muted);
         private int dragX;
         private int dragY;
 
         MiniWindow() {
             setAlwaysOnTop(true);
-            setSize(210, 82);
+            setSize(278, 104);
             Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-            setLocation(screen.width - 250, 96);
+            setLocation(screen.width - 330, 110);
             JPanel root = new MiniPanel();
-            root.setLayout(new BorderLayout(12, 0));
-            root.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 14));
+            root.setLayout(new BorderLayout(18, 0));
+            root.setBorder(BorderFactory.createEmptyBorder(16, 22, 16, 18));
             JPanel texts = new JPanel(new BorderLayout(0, 2));
             texts.setOpaque(false);
             texts.add(phase, BorderLayout.NORTH);
@@ -565,17 +588,17 @@ public class PomodoroDesktop {
     class RingPanel extends JPanel {
         RingPanel() {
             setOpaque(false);
-            setPreferredSize(new Dimension(360, 360));
+            setPreferredSize(new Dimension(430, 430));
         }
 
         protected void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
             Graphics2D g = (Graphics2D) graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            int size = Math.min(getWidth(), getHeight()) - 24;
+            int size = Math.min(getWidth(), getHeight()) - 30;
             int x = (getWidth() - size) / 2;
             int y = (getHeight() - size) / 2;
-            g.setStroke(new BasicStroke(16, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g.setStroke(new BasicStroke(20, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             g.setColor(AppColors.soft);
             g.drawOval(x, y, size, size);
             g.setColor(accentColor());
@@ -610,26 +633,26 @@ public class PomodoroDesktop {
                 keys.add(key);
                 max = Math.max(max, data.getOrDefault(key, 0));
             }
-            int left = 14;
-            int right = 14;
-            int top = 12;
-            int bottom = 30;
+            int left = 18;
+            int right = 18;
+            int top = 18;
+            int bottom = 36;
             int w = getWidth() - left - right;
             int h = getHeight() - top - bottom;
-            int gap = 12;
-            int barW = Math.max(14, (w - gap * (count - 1)) / count);
-            g.setFont(AppFonts.ui(12, Font.PLAIN));
+            int gap = 16;
+            int barW = Math.max(22, (w - gap * (count - 1)) / count);
+            g.setFont(AppFonts.ui(14, Font.PLAIN));
             for (int i = 0; i < count; i++) {
                 int value = data.getOrDefault(keys.get(i), 0);
                 int barH = Math.max(8, Math.round(h * (value / (float) max)));
                 int x = left + i * (barW + gap);
                 int y = top + h - barH;
                 g.setColor(accentColor());
-                g.fill(new RoundRectangle2D.Float(x, y, barW, barH, 10, 10));
+                g.fill(new RoundRectangle2D.Float(x, y, barW, barH, 14, 14));
                 g.setColor(AppColors.muted);
                 String label = monthly ? keys.get(i).substring(5) + "月" : keys.get(i).substring(8);
                 int sw = g.getFontMetrics().stringWidth(label);
-                g.drawString(label, x + (barW - sw) / 2, getHeight() - 8);
+                g.drawString(label, x + (barW - sw) / 2, getHeight() - 10);
             }
             g.dispose();
         }
@@ -639,11 +662,11 @@ public class PomodoroDesktop {
         protected void paintComponent(Graphics graphics) {
             Graphics2D g = (Graphics2D) graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g.setColor(new Color(255, 255, 255, 242));
-            g.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 28, 28));
+            g.setColor(new Color(255, 255, 255, 246));
+            g.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 34, 34));
             g.setColor(accentColor());
-            g.setStroke(new BasicStroke(4));
-            g.draw(new RoundRectangle2D.Float(2, 2, getWidth() - 4, getHeight() - 4, 28, 28));
+            g.setStroke(new BasicStroke(5));
+            g.draw(new RoundRectangle2D.Float(3, 3, getWidth() - 6, getHeight() - 6, 34, 34));
             g.dispose();
             super.paintComponent(graphics);
         }
@@ -760,42 +783,44 @@ public class PomodoroDesktop {
     }
 
     private JPanel metric(String title, JLabel value) {
-        JPanel panel = card(new BorderLayout(0, 10));
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 22, 20, 22));
-        JLabel label = label(title, 14, Font.PLAIN, AppColors.muted);
+        JPanel panel = card(new BorderLayout(0, 12));
+        panel.setBorder(BorderFactory.createEmptyBorder(24, 28, 24, 28));
+        JLabel label = label(title, 16, Font.PLAIN, AppColors.muted);
         panel.add(label, BorderLayout.NORTH);
         panel.add(value, BorderLayout.CENTER);
         return panel;
     }
 
     private JPanel chartCard(String title, Component chart) {
-        JPanel panel = card(new BorderLayout(0, 14));
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 22, 20, 22));
-        panel.add(label(title, 18, Font.BOLD, AppColors.ink), BorderLayout.NORTH);
+        JPanel panel = card(new BorderLayout(0, 18));
+        panel.setBorder(BorderFactory.createEmptyBorder(24, 28, 24, 28));
+        panel.add(label(title, 21, Font.BOLD, AppColors.ink), BorderLayout.NORTH);
         panel.add(chart, BorderLayout.CENTER);
         return panel;
     }
 
     private JPanel settingRow(String label, String unit, JSpinner spinner) {
-        JPanel row = new JPanel(new BorderLayout(16, 0));
+        JPanel row = new JPanel(new BorderLayout(24, 0));
         row.setOpaque(false);
-        row.add(label(label, 16, Font.BOLD, AppColors.ink), BorderLayout.WEST);
-        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        row.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(AppColors.line), BorderFactory.createEmptyBorder(16, 18, 16, 18)));
+        row.add(label(label, 18, Font.BOLD, AppColors.ink), BorderLayout.WEST);
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
         right.setOpaque(false);
-        spinner.setFont(AppFonts.ui(15, Font.PLAIN));
-        spinner.setPreferredSize(new Dimension(92, 34));
+        spinner.setFont(AppFonts.ui(17, Font.PLAIN));
+        spinner.setPreferredSize(new Dimension(112, 42));
         right.add(spinner);
-        right.add(label(unit, 14, Font.PLAIN, AppColors.muted));
+        right.add(label(unit, 16, Font.PLAIN, AppColors.muted));
         row.add(right, BorderLayout.EAST);
         return row;
     }
 
     private JPanel themeRow(JComboBox<String> themeBox) {
-        JPanel row = new JPanel(new BorderLayout(16, 0));
+        JPanel row = new JPanel(new BorderLayout(24, 0));
         row.setOpaque(false);
-        row.add(label("主题色", 16, Font.BOLD, AppColors.ink), BorderLayout.WEST);
-        themeBox.setFont(AppFonts.ui(15, Font.PLAIN));
-        themeBox.setPreferredSize(new Dimension(160, 34));
+        row.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(AppColors.line), BorderFactory.createEmptyBorder(16, 18, 16, 18)));
+        row.add(label("主题色", 18, Font.BOLD, AppColors.ink), BorderLayout.WEST);
+        themeBox.setFont(AppFonts.ui(17, Font.PLAIN));
+        themeBox.setPreferredSize(new Dimension(190, 42));
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         right.setOpaque(false);
         right.add(themeBox);
@@ -821,17 +846,19 @@ public class PomodoroDesktop {
 
     private JButton iconButton(String text) {
         JButton button = styledButton(text, settings.accent, Color.WHITE);
-        button.setPreferredSize(new Dimension(44, 44));
+        button.setPreferredSize(new Dimension(58, 58));
         return button;
     }
 
     private JButton styledButton(String text, int bg, Color fg) {
-        JButton button = new JButton(text);
-        button.setFont(AppFonts.ui(15, Font.BOLD));
+        JButton button = new RoundedButton(text, new Color(bg), fg);
+        button.setFont(AppFonts.ui(17, Font.BOLD));
         button.setForeground(fg);
         button.setBackground(new Color(bg));
         button.setFocusPainted(false);
-        button.setBorder(BorderFactory.createEmptyBorder(10, 18, 10, 18));
+        button.setContentAreaFilled(false);
+        button.setOpaque(false);
+        button.setBorder(BorderFactory.createEmptyBorder(15, 26, 15, 26));
         button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return button;
     }
@@ -848,6 +875,21 @@ public class PomodoroDesktop {
         panel.setLayout(layout);
         panel.setOpaque(false);
         return panel;
+    }
+
+    private JPanel heroCard(LayoutManager layout) {
+        JPanel panel = new HeroPanel();
+        panel.setLayout(layout);
+        panel.setOpaque(false);
+        return panel;
+    }
+
+    private JLabel badge(String text) {
+        JLabel label = label(text, 15, Font.BOLD, Color.WHITE);
+        label.setOpaque(true);
+        label.setBackground(accentColor());
+        label.setBorder(BorderFactory.createEmptyBorder(9, 18, 9, 18));
+        return label;
     }
 
     private int themeIndex(int color) {
@@ -880,9 +922,58 @@ public class PomodoroDesktop {
             Graphics2D g = (Graphics2D) graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g.setColor(Color.WHITE);
-            g.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 18, 18));
+            g.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 28, 28));
+            g.setColor(new Color(228, 224, 216));
+            g.draw(new RoundRectangle2D.Float(0.5f, 0.5f, getWidth() - 1f, getHeight() - 1f, 28, 28));
             g.dispose();
             super.paintComponent(graphics);
+        }
+    }
+
+    static class HeroPanel extends JPanel {
+        protected void paintComponent(Graphics graphics) {
+            Graphics2D g = (Graphics2D) graphics.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setColor(new Color(255, 255, 255));
+            g.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 34, 34));
+            g.setColor(new Color(226, 222, 212));
+            g.draw(new RoundRectangle2D.Float(0.5f, 0.5f, getWidth() - 1f, getHeight() - 1f, 34, 34));
+            g.dispose();
+            super.paintComponent(graphics);
+        }
+    }
+
+    static class RoundedButton extends JButton {
+        private final Color bg;
+        private final Color fg;
+
+        RoundedButton(String text, Color bg, Color fg) {
+            super(text);
+            this.bg = bg;
+            this.fg = fg;
+        }
+
+        protected void paintComponent(Graphics graphics) {
+            Graphics2D g = (Graphics2D) graphics.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            Color fill = getModel().isPressed() ? bg.darker() : (getModel().isRollover() ? brighten(bg) : bg);
+            g.setColor(fill);
+            g.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 24, 24));
+            if (bg.getRGB() == Color.WHITE.getRGB()) {
+                g.setColor(new Color(220, 216, 206));
+                g.draw(new RoundRectangle2D.Float(0.5f, 0.5f, getWidth() - 1f, getHeight() - 1f, 24, 24));
+            }
+            g.dispose();
+            setForeground(fg);
+            super.paintComponent(graphics);
+        }
+
+        private static Color brighten(Color color) {
+            return new Color(
+                    Math.min(255, color.getRed() + 10),
+                    Math.min(255, color.getGreen() + 10),
+                    Math.min(255, color.getBlue() + 10)
+            );
         }
     }
 
@@ -891,6 +982,7 @@ public class PomodoroDesktop {
         static final Color soft = new Color(236, 234, 226);
         static final Color ink = new Color(33, 35, 39);
         static final Color muted = new Color(104, 108, 116);
+        static final Color line = new Color(226, 222, 212);
     }
 
     static class AppFonts {
