@@ -78,3 +78,11 @@ run-desktop.bat
 ```bat
 desktop\dist\Run-PomodoroStatsDesktop.bat
 ```
+
+Windows 安装器：
+
+```text
+desktop\PomodoroStats-Setup-v1.1.0.exe
+```
+
+安装器会创建开始菜单项和桌面快捷方式，并内置 Java 运行时。
