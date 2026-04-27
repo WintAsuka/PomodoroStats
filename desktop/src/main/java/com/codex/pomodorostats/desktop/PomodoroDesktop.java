@@ -10,10 +10,7 @@ import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
-import javax.swing.JSpinner;
-import javax.swing.JTabbedPane;
 import javax.swing.JWindow;
-import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.UIManager;
@@ -21,6 +18,7 @@ import javax.swing.WindowConstants;
 import java.awt.AWTException;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
@@ -82,6 +80,11 @@ public class PomodoroDesktop {
     private TimerPanel timerPanel;
     private StatsPanel statsPanel;
     private SettingsPanel settingsPanel;
+    private CardLayout pageLayout;
+    private JPanel pages;
+    private JButton focusNav;
+    private JButton statsNav;
+    private JButton settingsNav;
 
     public static void main(String[] args) {
         System.setProperty("awt.useSystemAAFontSettings", "on");
@@ -96,21 +99,25 @@ public class PomodoroDesktop {
         }
         frame = new JFrame("PomodoroStats");
         frame.setDefaultCloseOperation(WindowConstants.HIDE_ON_CLOSE);
-        frame.setMinimumSize(new Dimension(1120, 760));
-        frame.setSize(1280, 820);
+        frame.setMinimumSize(new Dimension(1360, 860));
+        frame.setSize(1680, 980);
         frame.setLocationRelativeTo(null);
 
-        JTabbedPane tabs = new JTabbedPane();
         timerPanel = new TimerPanel();
         statsPanel = new StatsPanel();
         settingsPanel = new SettingsPanel();
-        tabs.addTab("专注", timerPanel);
-        tabs.addTab("统计", statsPanel);
-        tabs.addTab("设置", settingsPanel);
-        tabs.setFont(AppFonts.ui(18, Font.BOLD));
-        tabs.setBackground(AppColors.paper);
-        tabs.setForeground(AppColors.ink);
-        frame.setContentPane(tabs);
+        pageLayout = new CardLayout();
+        pages = new JPanel(pageLayout);
+        pages.add(timerPanel, "focus");
+        pages.add(statsPanel, "stats");
+        pages.add(settingsPanel, "settings");
+
+        JPanel shell = new JPanel(new BorderLayout());
+        shell.setBackground(AppColors.paper);
+        shell.add(createNavigation(), BorderLayout.NORTH);
+        shell.add(pages, BorderLayout.CENTER);
+        frame.setContentPane(shell);
+        selectPage("focus");
 
         miniWindow = new MiniWindow();
         installTray();
@@ -119,6 +126,57 @@ public class PomodoroDesktop {
         frame.setVisible(true);
         miniWindow.setVisible(true);
         refreshAll();
+    }
+
+    private JPanel createNavigation() {
+        JPanel nav = new JPanel(new BorderLayout());
+        nav.setBackground(new Color(255, 255, 255));
+        nav.setBorder(BorderFactory.createEmptyBorder(20, 34, 18, 34));
+
+        JPanel brand = new JPanel(new BorderLayout(0, 4));
+        brand.setOpaque(false);
+        brand.add(label("PomodoroStats", 28, Font.BOLD, AppColors.ink), BorderLayout.NORTH);
+        brand.add(label("桌面专注计时器", 15, Font.PLAIN, AppColors.muted), BorderLayout.SOUTH);
+        nav.add(brand, BorderLayout.WEST);
+
+        JPanel tabs = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 0));
+        tabs.setOpaque(false);
+        focusNav = navButton("专注");
+        statsNav = navButton("统计");
+        settingsNav = navButton("设置");
+        focusNav.addActionListener(e -> selectPage("focus"));
+        statsNav.addActionListener(e -> selectPage("stats"));
+        settingsNav.addActionListener(e -> selectPage("settings"));
+        tabs.add(focusNav);
+        tabs.add(statsNav);
+        tabs.add(settingsNav);
+        nav.add(tabs, BorderLayout.CENTER);
+        return nav;
+    }
+
+    private JButton navButton(String text) {
+        JButton button = new RoundedButton(text, Color.WHITE, AppColors.ink);
+        button.setFont(AppFonts.ui(20, Font.BOLD));
+        button.setBorder(BorderFactory.createEmptyBorder(16, 34, 16, 34));
+        button.setFocusPainted(false);
+        button.setContentAreaFilled(false);
+        button.setOpaque(false);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return button;
+    }
+
+    private void selectPage(String page) {
+        if (pageLayout == null) return;
+        pageLayout.show(pages, page);
+        styleNav(focusNav, "focus".equals(page));
+        styleNav(statsNav, "stats".equals(page));
+        styleNav(settingsNav, "settings".equals(page));
+    }
+
+    private void styleNav(JButton button, boolean selected) {
+        if (!(button instanceof RoundedButton)) return;
+        RoundedButton rb = (RoundedButton) button;
+        rb.setColors(selected ? accentColor() : Color.WHITE, selected ? Color.WHITE : AppColors.ink);
     }
 
     private void onTick() {
@@ -321,9 +379,6 @@ public class PomodoroDesktop {
 
     class TimerPanel extends JPanel {
         private final RingPanel ring = new RingPanel();
-        private final JLabel phase = label("专注", 22, Font.BOLD, AppColors.muted);
-        private final JLabel time = label("25:00", 82, Font.BOLD, AppColors.ink);
-        private final JLabel today = label("", 18, Font.PLAIN, AppColors.muted);
         private final JLabel week = label("", 22, Font.BOLD, accentColor());
         private final JLabel month = label("", 22, Font.BOLD, new Color(43, 136, 116));
         private final JLabel phaseBadge = badge("专注中");
@@ -345,22 +400,6 @@ public class PomodoroDesktop {
             header.add(phaseBadge, BorderLayout.EAST);
             center.add(header, BorderLayout.NORTH);
 
-            JPanel stack = new JPanel(new GridBagLayout());
-            stack.setOpaque(false);
-            GridBagConstraints gc = new GridBagConstraints();
-            gc.gridx = 0;
-            gc.gridy = 0;
-            stack.add(phase, gc);
-            gc.gridy++;
-            stack.add(Box.createVerticalStrut(10), gc);
-            gc.gridy++;
-            stack.add(time, gc);
-            gc.gridy++;
-            stack.add(Box.createVerticalStrut(10), gc);
-            gc.gridy++;
-            stack.add(today, gc);
-            ring.setLayout(new GridBagLayout());
-            ring.add(stack);
             center.add(ring, BorderLayout.CENTER);
 
             JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, 18, 0));
@@ -385,11 +424,8 @@ public class PomodoroDesktop {
         }
 
         void refresh() {
-            phase.setText(focusMode ? "专注中" : "休息中");
             phaseBadge.setText(focusMode ? "专注中" : "休息中");
             phaseBadge.setBackground(accentColor());
-            time.setText(timeText());
-            today.setText("今日完成 " + todayCount() + " / " + settings.dailyGoal + " 个");
             week.setText(weekMinutes() + " 分钟");
             month.setText(monthMinutes() + " 分钟");
             ring.repaint();
@@ -444,11 +480,11 @@ public class PomodoroDesktop {
 
     class SettingsPanel extends JPanel {
         private boolean refreshing = false;
-        private final JSpinner focus = spinner(settings.focusMin, 5, 120);
-        private final JSpinner brk = spinner(settings.breakMin, 1, 60);
-        private final JSpinner longBreak = spinner(settings.longBreakMin, 5, 90);
-        private final JSpinner rounds = spinner(settings.rounds, 2, 12);
-        private final JSpinner goal = spinner(settings.dailyGoal, 1, 16);
+        private final Stepper focus = new Stepper(settings.focusMin, 5, 120);
+        private final Stepper brk = new Stepper(settings.breakMin, 1, 60);
+        private final Stepper longBreak = new Stepper(settings.longBreakMin, 5, 90);
+        private final Stepper rounds = new Stepper(settings.rounds, 2, 12);
+        private final Stepper goal = new Stepper(settings.dailyGoal, 1, 16);
         private final JCheckBox autoFocus = new JCheckBox("休息结束后自动开始下一轮专注");
         private final JComboBox<String> theme = new JComboBox<>(new String[]{"番茄红", "森林绿", "海湾蓝", "暖橙", "紫罗兰"});
 
@@ -488,12 +524,11 @@ public class PomodoroDesktop {
             form.add(autoFocus, gc);
             add(form, BorderLayout.NORTH);
 
-            ChangeBinder binder = new ChangeBinder();
-            focus.addChangeListener(binder);
-            brk.addChangeListener(binder);
-            longBreak.addChangeListener(binder);
-            rounds.addChangeListener(binder);
-            goal.addChangeListener(binder);
+            focus.setOnChange(this::saveSettingsFromForm);
+            brk.setOnChange(this::saveSettingsFromForm);
+            longBreak.setOnChange(this::saveSettingsFromForm);
+            rounds.setOnChange(this::saveSettingsFromForm);
+            goal.setOnChange(this::saveSettingsFromForm);
             autoFocus.addActionListener(e -> saveSettingsFromForm());
             theme.addActionListener(e -> saveSettingsFromForm());
             refreshValues();
@@ -503,26 +538,25 @@ public class PomodoroDesktop {
             refreshing = true;
             autoFocus.setSelected(settings.autoFocus);
             theme.setSelectedIndex(themeIndex(settings.accent));
+            focus.setValue(settings.focusMin);
+            brk.setValue(settings.breakMin);
+            longBreak.setValue(settings.longBreakMin);
+            rounds.setValue(settings.rounds);
+            goal.setValue(settings.dailyGoal);
             refreshing = false;
         }
 
         private void saveSettingsFromForm() {
             if (refreshing) return;
-            settings.focusMin = (Integer) focus.getValue();
-            settings.breakMin = (Integer) brk.getValue();
-            settings.longBreakMin = (Integer) longBreak.getValue();
-            settings.rounds = (Integer) rounds.getValue();
-            settings.dailyGoal = (Integer) goal.getValue();
+            settings.focusMin = focus.getValue();
+            settings.breakMin = brk.getValue();
+            settings.longBreakMin = longBreak.getValue();
+            settings.rounds = rounds.getValue();
+            settings.dailyGoal = goal.getValue();
             settings.autoFocus = autoFocus.isSelected();
             settings.accent = accentAt(theme.getSelectedIndex());
             store.saveSettings(settings);
             resetTimer();
-        }
-
-        private class ChangeBinder implements javax.swing.event.ChangeListener {
-            public void stateChanged(javax.swing.event.ChangeEvent e) {
-                saveSettingsFromForm();
-            }
         }
     }
 
@@ -585,25 +619,115 @@ public class PomodoroDesktop {
         }
     }
 
+    class Stepper extends JPanel {
+        private final int min;
+        private final int max;
+        private int value;
+        private Runnable onChange;
+        private final JLabel valueLabel = label("", 22, Font.BOLD, AppColors.ink);
+
+        Stepper(int value, int min, int max) {
+            this.value = value;
+            this.min = min;
+            this.max = max;
+            setOpaque(false);
+            setLayout(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+            JButton minus = stepButton("-");
+            JButton plus = stepButton("+");
+            valueLabel.setHorizontalAlignment(JLabel.CENTER);
+            valueLabel.setPreferredSize(new Dimension(72, 52));
+            JPanel valuePill = new RoundedPanel();
+            valuePill.setLayout(new BorderLayout());
+            valuePill.setOpaque(false);
+            valuePill.setPreferredSize(new Dimension(92, 56));
+            valuePill.add(valueLabel, BorderLayout.CENTER);
+            minus.addActionListener(e -> setValue(this.value - 1, true));
+            plus.addActionListener(e -> setValue(this.value + 1, true));
+            add(minus);
+            add(valuePill);
+            add(plus);
+            refresh();
+        }
+
+        int getValue() {
+            return value;
+        }
+
+        void setValue(int value) {
+            setValue(value, false);
+        }
+
+        void setOnChange(Runnable onChange) {
+            this.onChange = onChange;
+        }
+
+        private void setValue(int next, boolean notify) {
+            int clamped = Math.max(min, Math.min(max, next));
+            if (clamped == value && notify) return;
+            value = clamped;
+            refresh();
+            if (notify && onChange != null) onChange.run();
+        }
+
+        private void refresh() {
+            valueLabel.setText(Integer.toString(value));
+        }
+
+        private JButton stepButton(String text) {
+            JButton button = new RoundedButton(text, accentColor(), Color.WHITE);
+            button.setFont(AppFonts.ui(24, Font.BOLD));
+            button.setPreferredSize(new Dimension(58, 56));
+            button.setBorder(BorderFactory.createEmptyBorder(8, 18, 8, 18));
+            button.setFocusPainted(false);
+            button.setContentAreaFilled(false);
+            button.setOpaque(false);
+            button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            return button;
+        }
+    }
+
     class RingPanel extends JPanel {
         RingPanel() {
             setOpaque(false);
-            setPreferredSize(new Dimension(430, 430));
+            setPreferredSize(new Dimension(780, 560));
         }
 
         protected void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
             Graphics2D g = (Graphics2D) graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            int size = Math.min(getWidth(), getHeight()) - 30;
+            int size = Math.max(280, Math.min(getWidth(), getHeight()) - 42);
             int x = (getWidth() - size) / 2;
             int y = (getHeight() - size) / 2;
-            g.setStroke(new BasicStroke(20, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            int stroke = Math.max(16, size / 34);
+            g.setStroke(new BasicStroke(stroke, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             g.setColor(AppColors.soft);
             g.drawOval(x, y, size, size);
             g.setColor(accentColor());
             g.draw(new Arc2D.Float(x, y, size, size, 90, -360 * progress(), Arc2D.OPEN));
+            g.setColor(accentColor());
+            g.fillOval(x + size / 2 - stroke / 2, y - stroke / 2, stroke, stroke);
+
+            String phaseText = focusMode ? "专注中" : "休息中";
+            String goalText = "今日完成 " + todayCount() + " / " + settings.dailyGoal + " 个";
+            int timeSize = Math.max(58, size / 6);
+            int phaseSize = Math.max(22, size / 26);
+            int goalSize = Math.max(18, size / 34);
+            g.setFont(AppFonts.ui(phaseSize, Font.BOLD));
+            g.setColor(AppColors.muted);
+            drawCentered(g, phaseText, getWidth() / 2, getHeight() / 2 - timeSize / 2 - 18);
+            g.setFont(AppFonts.ui(timeSize, Font.BOLD));
+            g.setColor(AppColors.ink);
+            drawCentered(g, timeText(), getWidth() / 2, getHeight() / 2 + timeSize / 3);
+            g.setFont(AppFonts.ui(goalSize, Font.PLAIN));
+            g.setColor(AppColors.muted);
+            drawCentered(g, goalText, getWidth() / 2, getHeight() / 2 + timeSize / 2 + goalSize + 10);
             g.dispose();
+        }
+
+        private void drawCentered(Graphics2D g, String text, int cx, int baseline) {
+            int width = g.getFontMetrics().stringWidth(text);
+            g.drawString(text, cx - width / 2, baseline);
         }
     }
 
@@ -799,16 +923,14 @@ public class PomodoroDesktop {
         return panel;
     }
 
-    private JPanel settingRow(String label, String unit, JSpinner spinner) {
+    private JPanel settingRow(String label, String unit, Stepper stepper) {
         JPanel row = new JPanel(new BorderLayout(24, 0));
         row.setOpaque(false);
         row.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(AppColors.line), BorderFactory.createEmptyBorder(16, 18, 16, 18)));
         row.add(label(label, 18, Font.BOLD, AppColors.ink), BorderLayout.WEST);
-        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 16, 0));
         right.setOpaque(false);
-        spinner.setFont(AppFonts.ui(17, Font.PLAIN));
-        spinner.setPreferredSize(new Dimension(112, 42));
-        right.add(spinner);
+        right.add(stepper);
         right.add(label(unit, 16, Font.PLAIN, AppColors.muted));
         row.add(right, BorderLayout.EAST);
         return row;
@@ -826,10 +948,6 @@ public class PomodoroDesktop {
         right.add(themeBox);
         row.add(right, BorderLayout.EAST);
         return row;
-    }
-
-    private JSpinner spinner(int value, int min, int max) {
-        return new JSpinner(new SpinnerNumberModel(value, min, max, 1));
     }
 
     private JButton primaryButton(String text, java.awt.event.ActionListener listener) {
@@ -944,13 +1062,19 @@ public class PomodoroDesktop {
     }
 
     static class RoundedButton extends JButton {
-        private final Color bg;
-        private final Color fg;
+        private Color bg;
+        private Color fg;
 
         RoundedButton(String text, Color bg, Color fg) {
             super(text);
             this.bg = bg;
             this.fg = fg;
+        }
+
+        void setColors(Color bg, Color fg) {
+            this.bg = bg;
+            this.fg = fg;
+            repaint();
         }
 
         protected void paintComponent(Graphics graphics) {
