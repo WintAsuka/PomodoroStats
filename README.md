@@ -1,0 +1,45 @@
+# PomodoroStats
+
+一个简洁、美观、可自定义的原生 Android 番茄钟应用。
+
+## 功能
+
+- 专注、短休息、长休息三阶段计时
+- 支持开始、暂停、重置、跳过当前阶段
+- 可自定义专注时长、短休息、长休息、长休息间隔和每日目标
+- 支持主题色切换、振动提醒、休息结束后自动开始专注
+- 支持今日、本周、本月专注统计
+- 支持最近 7 天和最近 6 个月统计，覆盖跨天、跨月记录
+- 数据保存在手机本地 `SharedPreferences`，无需联网
+- 竖屏手机 UI 适配，按钮和文字按 `dp/sp` 缩放
+
+## 技术栈
+
+- Android Java
+- 自定义 `View` 绘制界面
+- Gradle + Android Gradle Plugin
+- 无第三方运行时依赖
+
+## 构建
+
+本项目需要 JDK、Gradle 和 Android SDK。
+
+```bash
+gradle assembleDebug
+```
+
+构建成功后，APK 位于：
+
+```text
+app/build/outputs/apk/debug/app-debug.apk
+```
+
+本地已打包版本：
+
+```text
+PomodoroStats-mobile-ui-debug.apk
+```
+
+## 说明
+
+当前 APK 是 debug 签名版本，适合直接安装测试。如果需要正式发布到应用商店，需要配置 release 签名并执行 release 构建。
