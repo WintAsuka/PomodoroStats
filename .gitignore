@@ -1,8 +1,11 @@
 .gradle/
 build/
 app/build/
+desktop/out/
 local.properties
 *.apk
+!desktop/dist/*.jar
+!desktop/dist/*.bat
 *.ap_
 *.dex
 *.class

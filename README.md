@@ -1,6 +1,6 @@
 # PomodoroStats
 
-一个简洁、美观、可自定义的原生 Android 番茄钟应用。
+一个简洁、美观、可自定义的番茄钟应用。项目包含 Android 手机版和 Java 桌面版。
 
 ## 功能
 
@@ -12,6 +12,7 @@
 - 支持最近 7 天和最近 6 个月统计，覆盖跨天、跨月记录
 - 数据保存在手机本地 `SharedPreferences`，无需联网
 - 竖屏手机 UI 适配，按钮和文字按 `dp/sp` 缩放
+- 桌面版支持主面板、系统托盘常驻、可置顶迷你计时器
 
 ## 技术栈
 
@@ -21,6 +22,8 @@
 - 无第三方运行时依赖
 
 ## 构建
+
+### Android
 
 本项目需要 JDK、Gradle 和 Android SDK。
 
@@ -43,3 +46,34 @@ PomodoroStats-mobile-ui-debug.apk
 ## 说明
 
 当前 APK 是 debug 签名版本，适合直接安装测试。如果需要正式发布到应用商店，需要配置 release 签名并执行 release 构建。
+
+### 桌面版
+
+桌面版位于 `desktop/`，使用 Java Swing 实现，无第三方运行时依赖。
+
+功能形态：
+
+- 主窗口：专注计时、统计图表、参数设置
+- 迷你计时器：小型置顶悬浮窗，适合放在屏幕角落
+- 系统托盘：可快速开始/暂停、重置、显示主面板、退出
+- 本地数据：保存到用户目录下的 `.pomodoro-stats`
+
+构建：
+
+```bat
+cd desktop
+build-desktop.bat
+```
+
+运行：
+
+```bat
+cd desktop
+run-desktop.bat
+```
+
+也可以直接运行已构建的包：
+
+```bat
+desktop\dist\Run-PomodoroStatsDesktop.bat
+```
