@@ -58,8 +58,8 @@ PomodoroStats-mobile-ui-debug.apk
 - 系统托盘：可快速开始/暂停、重置、显示主面板、退出
 - 本地数据：保存到用户目录下的 `.pomodoro-stats`
 - UI：按 2.5K 桌面分辨率优化，使用自定义大导航、自绘按钮、动态缩放计时环和大号设置步进器
-- 统计：显示本周每天、最近 8 周、最近 6 个月、本周总计和本月总计
-- 动效：计时环呼吸光点、统计柱状图缓动增长、卡片细腻渐变
+- 统计：用总览卡、本周 7 天节奏卡、最近 8 周列表、最近 6 个月列表清晰展示专注时间
+- 动效：计时环呼吸光点、统计进度条缓动增长、卡片细腻渐变
 
 构建：
 
@@ -81,10 +81,10 @@ run-desktop.bat
 desktop\dist\Run-PomodoroStatsDesktop.bat
 ```
 
-Windows 安装器：
+Windows 安装器发布在 GitHub Releases，本地生成版本位于：
 
 ```text
-desktop\PomodoroStats-Setup-v1.1.0.exe
+desktop\PomodoroStats-Setup-v1.2.0.exe
 ```
 
 安装器会创建开始菜单项和桌面快捷方式，并内置 Java 运行时。

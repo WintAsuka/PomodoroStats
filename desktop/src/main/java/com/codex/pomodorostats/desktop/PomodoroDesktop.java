@@ -484,19 +484,20 @@ public class PomodoroDesktop {
     }
 
     class StatsPanel extends JPanel {
-        private final JLabel total = label("", 28, Font.BOLD, accentColor());
-        private final JLabel streak = label("", 28, Font.BOLD, new Color(65, 105, 190));
-        private final JLabel weekTotal = label("", 28, Font.BOLD, new Color(228, 86, 79));
-        private final JLabel monthTotal = label("", 28, Font.BOLD, new Color(43, 136, 116));
-        private final ChartPanel weekDays = new ChartPanel(ChartKind.WEEK_DAYS);
-        private final ChartPanel weeks = new ChartPanel(ChartKind.WEEKS);
-        private final ChartPanel months = new ChartPanel(ChartKind.MONTHS);
+        private final JLabel total = label("", 30, Font.BOLD, accentColor());
+        private final JLabel streak = label("", 30, Font.BOLD, new Color(65, 105, 190));
+        private final JLabel weekTotal = label("", 30, Font.BOLD, new Color(228, 86, 79));
+        private final JLabel monthTotal = label("", 30, Font.BOLD, new Color(43, 136, 116));
         private final JLabel insight = label("", 18, Font.PLAIN, AppColors.ink);
+        private final WeekStripPanel weekDays = new WeekStripPanel();
+        private final ProgressListPanel weeks = new ProgressListPanel(RangeKind.WEEKS);
+        private final ProgressListPanel months = new ProgressListPanel(RangeKind.MONTHS);
 
         StatsPanel() {
             setLayout(new BorderLayout(28, 28));
             setBackground(AppColors.paper);
             setBorder(BorderFactory.createEmptyBorder(36, 44, 38, 44));
+
             JPanel top = new JPanel(new GridBagLayout());
             top.setOpaque(false);
             GridBagConstraints gc = new GridBagConstraints();
@@ -514,26 +515,31 @@ public class PomodoroDesktop {
             top.add(metric("本月专注", monthTotal), gc);
             add(top, BorderLayout.NORTH);
 
-            JPanel charts = new JPanel(new GridBagLayout());
-            charts.setOpaque(false);
+            JPanel body = new JPanel(new GridBagLayout());
+            body.setOpaque(false);
             GridBagConstraints c = new GridBagConstraints();
             c.gridx = 0;
             c.gridy = 0;
+            c.gridwidth = 2;
             c.weightx = 1;
             c.weighty = 0;
             c.fill = GridBagConstraints.BOTH;
-            c.insets = new Insets(0, 0, 16, 0);
-            charts.add(insightCard(insight), c);
+            c.insets = new Insets(0, 0, 20, 0);
+            body.add(insightCard(insight), c);
+
             c.gridy = 1;
-            c.weighty = 1;
-            charts.add(chartCard("本周每天专注时间", weekDays), c);
+            c.insets = new Insets(0, 0, 22, 0);
+            body.add(chartCard("本周 7 天节奏", weekDays), c);
+
             c.gridy = 2;
-            c.insets = new Insets(16, 0, 16, 0);
-            charts.add(chartCard("最近 8 周专注时间", weeks), c);
-            c.gridy = 3;
-            c.insets = new Insets(16, 0, 0, 0);
-            charts.add(chartCard("最近 6 个月专注时间", months), c);
-            add(charts, BorderLayout.CENTER);
+            c.gridwidth = 1;
+            c.weighty = 1;
+            c.insets = new Insets(0, 0, 0, 14);
+            body.add(chartCard("最近 8 周", weeks), c);
+            c.gridx = 1;
+            c.insets = new Insets(0, 14, 0, 0);
+            body.add(chartCard("最近 6 个月", months), c);
+            add(body, BorderLayout.CENTER);
         }
 
         void refresh() {
@@ -807,20 +813,19 @@ public class PomodoroDesktop {
         }
     }
 
-    enum ChartKind {
-        WEEK_DAYS,
+    enum RangeKind {
         WEEKS,
         MONTHS
     }
 
-    class ChartPanel extends JPanel {
-        private final ChartKind kind;
+    class WeekStripPanel extends JPanel {
         private Map<String, Integer> data = new LinkedHashMap<>();
         private final Map<String, Float> animated = new LinkedHashMap<>();
+        private final String[] labels = {"周一", "周二", "周三", "周四", "周五", "周六", "周日"};
 
-        ChartPanel(ChartKind kind) {
-            this.kind = kind;
+        WeekStripPanel() {
             setOpaque(false);
+            setPreferredSize(new Dimension(980, 220));
         }
 
         void setData(Map<String, Integer> data) {
@@ -833,58 +838,148 @@ public class PomodoroDesktop {
             super.paintComponent(graphics);
             Graphics2D g = (Graphics2D) graphics.create();
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            List<String> keys = chartKeys();
-            int max = 1;
-            for (String key : keys) {
-                max = Math.max(max, data.getOrDefault(key, 0));
-            }
-            int count = keys.size();
-            int left = 22;
-            int right = 22;
-            int top = 22;
-            int bottom = 52;
-            int w = getWidth() - left - right;
-            int h = getHeight() - top - bottom;
-            int gap = kind == ChartKind.WEEKS ? 14 : 18;
-            int barW = Math.max(22, (w - gap * (count - 1)) / count);
-            g.setFont(AppFonts.ui(14, Font.PLAIN));
-            for (int i = 0; i < count; i++) {
+            List<String> keys = weekKeys();
+            int max = Math.max(settings.dailyGoal * settings.focusMin, 1);
+            for (String key : keys) max = Math.max(max, data.getOrDefault(key, 0));
+            int gap = 16;
+            int tileW = Math.max(120, (getWidth() - gap * 6) / 7);
+            int tileH = Math.max(150, getHeight() - 12);
+            int y = 6;
+            boolean moving = false;
+            for (int i = 0; i < keys.size(); i++) {
                 String key = keys.get(i);
                 int value = data.getOrDefault(key, 0);
-                float current = animated.getOrDefault(key, 0f);
-                current += (value - current) * 0.18f;
-                if (Math.abs(value - current) < 0.35f) current = value;
-                animated.put(key, current);
-                int barH = Math.max(10, Math.round(h * (current / (float) max)));
-                int x = left + i * (barW + gap);
-                int y = top + h - barH;
-                g.setPaint(new GradientPaint(x, y, brighten(accentColor(), 22), x, y + barH, accentColor()));
-                g.fill(new RoundRectangle2D.Float(x, y, barW, barH, 14, 14));
-                g.setColor(new Color(255, 255, 255, 90));
-                g.fill(new RoundRectangle2D.Float(x + 4, y + 4, Math.max(4, barW - 8), Math.max(2, barH / 3), 10, 10));
-                g.setColor(AppColors.muted);
-                String label = labelFor(key);
-                int sw = g.getFontMetrics().stringWidth(label);
-                g.drawString(label, x + (barW - sw) / 2, getHeight() - 10);
-                if (value > 0) {
-                    String number = value + "m";
-                    int nw = g.getFontMetrics().stringWidth(number);
-                    g.setColor(AppColors.ink);
-                    g.drawString(number, x + (barW - nw) / 2, Math.max(top + 15, y - 8));
-                }
+                float current = ease(key, value);
+                moving = moving || Math.abs(value - current) > 0.5f;
+                int x = i * (tileW + gap);
+                boolean today = LocalDate.now().toString().equals(key);
+                paintDayTile(g, x, y, tileW, tileH, labels[i], value, current / (float) max, today);
             }
-            boolean moving = false;
-            for (String key : keys) if (Math.abs(data.getOrDefault(key, 0) - animated.getOrDefault(key, 0f)) > 0.5f) moving = true;
             if (moving) repaint(16);
             g.dispose();
         }
 
-        private List<String> chartKeys() {
+        private void paintDayTile(Graphics2D g, int x, int y, int w, int h, String day, int value, float ratio, boolean today) {
+            g.setColor(today ? new Color(255, 249, 247) : new Color(255, 255, 255, 232));
+            g.fill(new RoundRectangle2D.Float(x, y, w, h, 22, 22));
+            g.setColor(today ? brighten(accentColor(), 12) : AppColors.line);
+            g.setStroke(new BasicStroke(today ? 2f : 1.2f));
+            g.draw(new RoundRectangle2D.Float(x + 1, y + 1, w - 2, h - 2, 22, 22));
+
+            g.setFont(AppFonts.ui(18, Font.BOLD));
+            g.setColor(AppColors.muted);
+            g.drawString(day, x + 20, y + 34);
+            if (today) {
+                g.setColor(accentColor());
+                g.fill(new RoundRectangle2D.Float(x + w - 58, y + 18, 38, 20, 10, 10));
+                g.setFont(AppFonts.ui(12, Font.BOLD));
+                g.setColor(Color.WHITE);
+                g.drawString("今天", x + w - 51, y + 33);
+            }
+
+            g.setFont(AppFonts.ui(30, Font.BOLD));
+            g.setColor(AppColors.ink);
+            g.drawString(value + " 分钟", x + 20, y + 82);
+            g.setFont(AppFonts.ui(14, Font.PLAIN));
+            g.setColor(AppColors.muted);
+            g.drawString(goalHint(value), x + 20, y + 110);
+
+            int barX = x + 20;
+            int barY = y + h - 42;
+            int barW = w - 40;
+            int barH = 12;
+            g.setColor(new Color(237, 233, 225));
+            g.fill(new RoundRectangle2D.Float(barX, barY, barW, barH, 10, 10));
+            g.setPaint(new GradientPaint(barX, barY, brighten(accentColor(), 26), barX + barW, barY, accentColor()));
+            g.fill(new RoundRectangle2D.Float(barX, barY, Math.max(8, barW * Math.min(1f, ratio)), barH, 10, 10));
+        }
+
+        private String goalHint(int value) {
+            int target = Math.max(1, settings.dailyGoal * settings.focusMin);
+            if (value >= target) return "已达成日目标";
+            return "距目标 " + Math.max(0, target - value) + " 分钟";
+        }
+
+        private List<String> weekKeys() {
             List<String> keys = new ArrayList<>();
-            if (kind == ChartKind.WEEK_DAYS) {
-                LocalDate start = LocalDate.now().with(DayOfWeek.MONDAY);
-                for (int i = 0; i < 7; i++) keys.add(start.plusDays(i).toString());
-            } else if (kind == ChartKind.WEEKS) {
+            LocalDate start = LocalDate.now().with(DayOfWeek.MONDAY);
+            for (int i = 0; i < 7; i++) keys.add(start.plusDays(i).toString());
+            return keys;
+        }
+
+        private float ease(String key, int value) {
+            float current = animated.getOrDefault(key, 0f);
+            current += (value - current) * 0.2f;
+            if (Math.abs(value - current) < 0.35f) current = value;
+            animated.put(key, current);
+            return current;
+        }
+    }
+
+    class ProgressListPanel extends JPanel {
+        private final RangeKind kind;
+        private Map<String, Integer> data = new LinkedHashMap<>();
+        private final Map<String, Float> animated = new LinkedHashMap<>();
+
+        ProgressListPanel(RangeKind kind) {
+            this.kind = kind;
+            setOpaque(false);
+            setPreferredSize(new Dimension(460, 330));
+        }
+
+        void setData(Map<String, Integer> data) {
+            this.data = data;
+            for (String key : keys()) animated.putIfAbsent(key, 0f);
+            repaint();
+        }
+
+        protected void paintComponent(Graphics graphics) {
+            super.paintComponent(graphics);
+            Graphics2D g = (Graphics2D) graphics.create();
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            List<String> keys = keys();
+            int max = 1;
+            for (String key : keys) max = Math.max(max, data.getOrDefault(key, 0));
+            int rowH = Math.max(34, getHeight() / Math.max(1, keys.size()));
+            boolean moving = false;
+            for (int i = 0; i < keys.size(); i++) {
+                String key = keys.get(i);
+                int value = data.getOrDefault(key, 0);
+                float current = ease(key, value);
+                moving = moving || Math.abs(value - current) > 0.5f;
+                paintRow(g, key, value, current / (float) max, 4, i * rowH + 4, getWidth() - 8, rowH - 8);
+            }
+            if (moving) repaint(16);
+            g.dispose();
+        }
+
+        private void paintRow(Graphics2D g, String key, int value, float ratio, int x, int y, int w, int h) {
+            String name = labelFor(key);
+            g.setFont(AppFonts.ui(17, Font.BOLD));
+            g.setColor(AppColors.ink);
+            g.drawString(name, x + 2, y + h / 2 + 6);
+
+            String valueText = value + " 分钟";
+            g.setFont(AppFonts.ui(16, Font.BOLD));
+            int valueW = g.getFontMetrics().stringWidth(valueText);
+            g.setColor(value > 0 ? accentColor() : AppColors.muted);
+            g.drawString(valueText, x + w - valueW - 4, y + h / 2 + 6);
+
+            int barX = x + 92;
+            int barW = Math.max(80, w - 210);
+            int barY = y + h / 2 - 6;
+            int barH = 12;
+            g.setColor(new Color(237, 233, 225));
+            g.fill(new RoundRectangle2D.Float(barX, barY, barW, barH, 10, 10));
+            if (value > 0) {
+                g.setPaint(new GradientPaint(barX, barY, brighten(accentColor(), 26), barX + barW, barY, accentColor()));
+                g.fill(new RoundRectangle2D.Float(barX, barY, Math.max(8, barW * Math.min(1f, ratio)), barH, 10, 10));
+            }
+        }
+
+        private List<String> keys() {
+            List<String> keys = new ArrayList<>();
+            if (kind == RangeKind.WEEKS) {
                 WeekFields fields = WeekFields.ISO;
                 LocalDate cursor = LocalDate.now().with(DayOfWeek.MONDAY).minusWeeks(7);
                 for (int i = 0; i < 8; i++) {
@@ -900,13 +995,16 @@ public class PomodoroDesktop {
         }
 
         private String labelFor(String key) {
-            if (kind == ChartKind.WEEK_DAYS) {
-                String[] labels = {"一", "二", "三", "四", "五", "六", "日"};
-                int index = LocalDate.parse(key).getDayOfWeek().getValue() - 1;
-                return "周" + labels[index];
-            }
-            if (kind == ChartKind.WEEKS) return key.substring(key.indexOf('W'));
-            return key.substring(5) + "月";
+            if (kind == RangeKind.WEEKS) return "第 " + key.substring(key.indexOf('W') + 1) + " 周";
+            return key.substring(5) + " 月";
+        }
+
+        private float ease(String key, int value) {
+            float current = animated.getOrDefault(key, 0f);
+            current += (value - current) * 0.2f;
+            if (Math.abs(value - current) < 0.35f) current = value;
+            animated.put(key, current);
+            return current;
         }
     }
 
